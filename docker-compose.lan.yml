@@ -1,0 +1,20 @@
+# Compose pour déploiement LAN privé (SANS Traefik, SANS exposition internet).
+# Usage : docker compose -f docker-compose.lan.yml up -d --build
+# (docker-compose.yml garde les labels Traefik pour un éventuel reverse-proxy Cloud)
+services:
+  crowdfunding-tracker:
+    build: .
+    image: crowdfunding-tracker:latest
+    container_name: crowdfunding-tracker
+    restart: unless-stopped
+    environment:
+      - PORT=${PORT:-8016}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-change-me}
+      - COOKIE_SECURE=${COOKIE_SECURE:-0}
+      - GITHUB_REPO=${GITHUB_REPO:-LostInTheBugs/crowdfunding-tracker}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "${PORT:-8016}:8016"

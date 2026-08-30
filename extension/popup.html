@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: system-ui, sans-serif; width: 340px; margin: 0; padding: 14px; background: #111318; color: #e5e7eb; }
+  h1 { font-size: 14px; margin: 0 0 10px; color: #f97316; }
+  .stat { font-size: 12px; color: #9ca3af; margin-bottom: 6px; line-height: 1.5; }
+  .stat b { color: #e5e7eb; }
+  button { width: 100%; padding: 9px; border: 0; border-radius: 8px; font-size: 13px; cursor: pointer; margin-bottom: 8px; }
+  #send { background: #f97316; color: #fff; }
+  #send:disabled { opacity: .5; cursor: not-allowed; }
+  .ghost { background: transparent; color: #9ca3af; border: 1px solid #374151; font-size: 12px; }
+  a { display: block; text-align: center; color: #6b7280; font-size: 11px; margin-top: 6px; text-decoration: none; }
+  #msg { font-size: 12px; margin-top: 8px; min-height: 16px; white-space: pre-wrap; }
+  .ok { color: #4ade80; } .err { color: #f87171; }
+  #diagBox { border-top: 1px solid #1f2937; margin-top: 10px; padding-top: 8px; font-size: 11px; color: #6b7280; max-height: 120px; overflow-y: auto; }
+</style>
+</head>
+<body>
+  <h1>📡 Crowdfunding Tracker Sync</h1>
+  <div class="stat">Captures en attente : <b id="count">0</b></div>
+  <div class="stat" id="cfg">Serveur : —</div>
+  <button id="send">📤 Envoyer au tracker</button>
+  <button class="ghost" id="ping">🔍 Tester l'injection (onglet actif)</button>
+  <button class="ghost" id="clear">🗑️ Vider les captures</button>
+  <div id="msg"></div>
+  <div id="diagBox"></div>
+  <a href="#" id="opts">⚙️ Options (serveur + token)</a>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Crowdfunding Tracker Sync",
+  "version": "1.5.5",
+  "description": "Capture les données de vos espaces Bricks.co et La Première Brique et les envoie au Crowdfunding Tracker (LAN uniquement). Aucune donnée ne quitte votre réseau.",
+  "permissions": ["storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://app.bricks.co/*",
+    "https://app-legacy.bricks.co/*",
+    "https://app.lapremierebrique.fr/*",
+    "http://localhost:8016/*",
+    "http://127.0.0.1:8016/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://app.bricks.co/*",
+        "https://app-legacy.bricks.co/*",
+        "https://app.lapremierebrique.fr/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Crowdfunding Tracker Sync"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

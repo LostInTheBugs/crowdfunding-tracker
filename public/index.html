@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Crowdfunding Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#12161c; --card:#1a2029; --card2:#202936; --border:#2c3544;
+  --txt:#e6edf3; --muted:#8b98a9; --accent:#4f8cff; --green:#3fb950;
+  --red:#f85149; --orange:#f0883e; --violet:#a371f7;
+}
+body { background:var(--bg); color:var(--txt); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; min-height:100vh; }
+.hidden { display:none !important; }
+
+/* ---------- login ---------- */
+#viewLogin { display:flex; align-items:center; justify-content:center; min-height:100vh;
+  background:radial-gradient(1200px 600px at 50% -10%, #1d2b45 0%, var(--bg) 60%); }
+.login-card { background:rgba(26,32,41,0.92); border:1px solid var(--border); border-radius:14px;
+  padding:36px 40px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+.login-card h1 { font-size:20px; margin-bottom:4px; }
+.login-card p { color:var(--muted); font-size:13px; margin-bottom:24px; }
+.login-card input { width:100%; padding:10px 12px; margin-bottom:12px; background:#0f141a;
+  border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:14px; }
+.login-card input:focus { outline:none; border-color:var(--accent); }
+.login-card button { width:100%; padding:10px; border:none; border-radius:8px; background:var(--accent);
+  color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+.login-card button:hover { filter:brightness(1.1); }
+.login-err { color:var(--red); font-size:13px; margin-top:10px; min-height:18px; }
+
+/* ---------- layout ---------- */
+#app { display:flex; min-height:100vh; }
+#sidebar { width:210px; background:var(--card); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:16px 10px; position:sticky; top:0; height:100vh; }
+#sidebar .brand { font-size:15px; font-weight:700; padding:6px 12px 18px; display:flex; gap:8px; align-items:center; }
+#sidebar .brand small { display:block; color:var(--muted); font-weight:400; font-size:11px; }
+#sidebar nav a { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:2px 0;
+  border-radius:8px; color:var(--muted); text-decoration:none; font-size:14px; cursor:pointer; }
+#sidebar nav a:hover { background:var(--card2); color:var(--txt); }
+#sidebar nav a.active { background:var(--card2); color:var(--txt); font-weight:600; }
+#sidebar .spacer { flex:1; }
+#main { flex:1; padding:24px 28px; max-width:1200px; }
+
+h2.page-title { font-size:20px; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+h2.page-title .ver { font-size:12px; color:var(--muted); font-weight:400; }
+
+/* ---------- cards ---------- */
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.stat-card .label { font-size:12px; color:var(--muted); margin-bottom:6px; }
+.stat-card .value { font-size:22px; font-weight:700; }
+.stat-card .sub { font-size:11px; color:var(--muted); margin-top:4px; }
+.stat-card.green .value { color:var(--green); }
+.stat-card.red .value { color:var(--red); }
+.stat-card.orange .value { color:var(--orange); }
+.stat-card.blue .value { color:var(--accent); }
+.stat-card.violet .value { color:var(--violet); }
+
+.chart-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px; }
+.panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+.panel h3 { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:14px; margin-bottom:12px; color:var(--muted); font-weight:600; }
+.panel h3 > span[style*="float:right"] { float:none; margin-left:auto; display:flex; gap:4px; align-items:center; }
+.panel .chart-wrap { position:relative; height:230px; }
+
+/* ---------- table ---------- */
+.toolbar { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+.toolbar select, .toolbar input[type=search] { padding:8px 10px; background:#0f141a; color:var(--txt);
+  border:1px solid var(--border); border-radius:8px; font-size:13px; }
+.toolbar input[type=search] { flex:1; min-width:180px; }
+.btn { padding:8px 14px; border:none; border-radius:8px; background:var(--accent); color:#fff;
+  font-size:13px; font-weight:600; cursor:pointer; }
+.btn:hover { filter:brightness(1.1); }
+.btn.ghost { background:var(--card2); color:var(--txt); border:1px solid var(--border); }
+.btn.danger { background:#3a1d1d; color:var(--red); border:1px solid #5c2a2a; }
+.btn.small { padding:4px 10px; font-size:12px; }
+
+table { width:100%; border-collapse:collapse; background:var(--card); border-radius:12px; overflow:hidden; }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
+  padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; }
+th:hover { color:var(--txt); }
+td { padding:10px 12px; border-bottom:1px solid #1f2733; font-size:13px; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,.02); }
+td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+th.num { text-align:right; }
+.muted { color:var(--muted); }
+.pos { color:var(--green); } .neg { color:var(--red); } .warn { color:var(--orange); }
+.empty { text-align:center; color:var(--muted); padding:36px !important; }
+
+/* ---------- badges ---------- */
+.badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; white-space:nowrap; }
+.badge.en_collecte { background:#1e3a2a; color:#7ee2a8; }
+.badge.en_cours { background:#1e2f4a; color:#79b8ff; }
+.badge.rembourse { background:#2d333b; color:#adbac7; }
+.badge.perdu { background:#4a1e1e; color:#ff938c; }
+.badge.retard { background:#4a2e1e; color:#ffc38c; }
+.badge.late { background:#4a2e1e; color:#ffc38c; }
+.plat { display:inline-flex; align-items:center; gap:6px; }
+.plat .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+/* ---------- modal ---------- */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex;
+  align-items:center; justify-content:center; z-index:50; }
+.modal { background:var(--card); border:1px solid var(--border); border-radius:14px;
+  width:560px; max-width:94vw; max-height:90vh; overflow-y:auto; padding:22px 24px; }
+.modal h3 { font-size:16px; margin-bottom:16px; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.form-grid .full { grid-column:1/-1; }
+.form-grid label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+.form-grid input, .form-grid select, .form-grid textarea { width:100%; padding:8px 10px;
+  background:#0f141a; border:1px solid var(--border); border-radius:8px; color:var(--txt); font-size:13px; }
+.form-grid input:focus, .form-grid select:focus { outline:none; border-color:var(--accent); }
+.form-grid textarea { resize:vertical; min-height:56px; }
+.modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+.modal .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+
+/* ---------- toast ---------- */
+#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--card2);
+  border:1px solid var(--border); color:var(--txt); padding:10px 18px; border-radius:10px;
+  font-size:13px; z-index:100; box-shadow:0 8px 30px rgba(0,0,0,.5); transition:opacity .25s; }
+#toast.ok { border-color:var(--green); }
+#toast.err { border-color:var(--red); }
+
+/* ---------- detail panel ---------- */
+.detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:14px; }
+.detail-grid .stat-card { padding:12px 14px; }
+.detail-grid .stat-card .value { font-size:17px; }
+
+/* ---------- misc ---------- */
+.footer-note { color:var(--muted); font-size:12px; margin-top:20px; text-align:right; }
+.late-list-item { display:flex; justify-content:space-between; align-items:center; padding:9px 2px;
+  border-bottom:1px solid #1f2733; font-size:13px; }
+.late-list-item:last-child { border-bottom:none; }
+/* ---------- responsive ---------- */
+/* tablette : sidebar réduite aux icônes, graphiques empilés */
+@media (max-width:900px) {
+  #sidebar { width:62px; padding:14px 8px; }
+  #sidebar .brand span, #sidebar nav a span { display:none; }
+  #sidebar nav a { justify-content:center; gap:0; }
+  .chart-row { grid-template-columns:1fr; }
+  #main { padding:18px; }
+}
+/* mobile : barre de navigation en bas, contenu pleine largeur */
+@media (max-width:640px) {
+  #app { flex-direction:column; }
+  #sidebar { position:fixed; top:auto; bottom:0; left:0; right:0; width:100%; height:auto;
+    flex-direction:row; align-items:stretch; padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    border-right:none; border-top:1px solid var(--border); z-index:60; }
+  #sidebar .brand, #sidebar .spacer { display:none; }
+  #sidebar nav { display:flex; flex:1; justify-content:space-around; }
+  #sidebar nav a { flex-direction:column; gap:1px; margin:0; padding:5px 1px; font-size:8.5px; text-align:center; }
+  #sidebar nav a span { display:block !important; }
+  #main { padding:14px 12px calc(74px + env(safe-area-inset-bottom)); max-width:none; }
+  h2.page-title { font-size:18px; margin-bottom:14px; }
+  .stat-grid { grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
+  .stat-card { padding:12px; }
+  .stat-card .value { font-size:19px; }
+  .chart-row { gap:12px; }
+  /* les chart-row avec grid inline (page Paramètres) doivent aussi passer en 1 colonne */
+  .chart-row[style*="grid-template-columns"] { grid-template-columns:1fr !important; }
+  .form-grid { grid-template-columns:1fr; }
+  .login-card { width:auto; max-width:92vw; padding:26px 20px; }
+  /* inputs ≥16px : évite le zoom automatique iOS au focus */
+  input, select, textarea { font-size:16px; }
+  th, td { padding:8px 8px; }
+  .btn.small { padding:7px 12px; }
+  .panel h3 .btn { padding:6px 10px; }
+  /* légendes des graphiques : retour à la ligne au lieu de déborder */
+  #platLeg span, #latePlatLeg span, #sevLpbLeg span, #sevBricksLeg span, #echLeg span { white-space:normal !important; }
+  .modal { padding:18px 14px; }
+  .modal-actions { flex-wrap:wrap; }
+  .toolbar .btn { flex:1; min-width:120px; }
+  .late-list-item { flex-wrap:wrap; gap:4px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="viewLogin">
+  <div class="login-card">
+    <h1>🏗️ Crowdfunding Tracker</h1>
+    <p>Suivi de mes investissements immobiliers</p>
+    <input id="loginUser" placeholder="Identifiant" autocomplete="username">
+    <input id="loginPass" type="password" placeholder="Mot de passe" autocomplete="current-password">
+    <button onclick="doLogin()">Se connecter</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <aside id="sidebar">
+    <div class="brand">🏗️ <span>Crowdfunding<small>Tracker</small></span></div>
+    <nav>
+      <a data-page="dash" class="active" onclick="switchPage('dash')" title="Dashboard">📊 <span data-i18n="dash">Dashboard</span></a>
+      <a data-page="perf" onclick="switchPage('perf')" title="Évolution & performance">📈 <span data-i18n="perf">Performance</span></a>
+      <a data-page="retards" onclick="switchPage('retards')" title="Retards & échéances">⚠️ <span data-i18n="retards">Retards</span></a>
+      <a data-page="projets" onclick="switchPage('projets')" title="Projets">🏗️ <span data-i18n="projets">Projets</span></a>
+      <a data-page="ops" onclick="switchPage('ops')" title="Opérations">📜 <span data-i18n="ops">Opérations</span></a>
+      <a data-page="params" onclick="switchPage('params')" title="Paramètres">⚙️ <span data-i18n="params">Paramètres</span></a>
+    </nav>
+    <div class="spacer"></div>
+    <nav>
+      <a onclick="toggleDiscret()" id="btnDiscret" title="Masquer les montants (affichage en % / masqué)">🔒 <span data-i18n="discreet">Discret</span></a>
+      <a onclick="doLogout()" title="Déconnexion">🚪 <span data-i18n="logout">Déconnexion</span></a>
+    </nav>
+  </aside>
+
+  <main id="main">
+    <!-- bandeau nouvelle version -->
+    <div id="updateBanner" class="hidden" style="background:#3a2e1e;border:1px solid #5c4a2a;color:#ffc38c;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">📦 <b data-i18n="updateDispo">Nouvelle version disponible</b> : <span id="updateVer" style="font-weight:700"></span>
+        <div id="updateChangelog" class="muted" style="font-size:11px;margin-top:3px;white-space:pre-line"></div></div>
+      <button class="btn ghost small" onclick="dismissUpdate()" data-i18n="updateIgnore">Ignorer</button>
+    </div>
+    <!-- ============ DASHBOARD ============ -->
+    <section id="pageDash">
+      <h2 class="page-title"><span data-i18n="dash">📊 Dashboard</span> <span class="ver" id="verDash"></span></h2>
+      <div class="stat-grid">
+        <div class="stat-card blue"><div class="label"><span data-i18n="mise">💰 Mise totale</span></div><div class="value" id="sInvested">—</div>
+          <div class="sub" id="sCounts"></div></div>
+        <div class="stat-card"><div class="label"><span data-i18n="capital">🏦 Encours (capital dû)</span></div><div class="value" id="sCapital">—</div>
+          <div class="sub" id="sActive"></div></div>
+        <div class="stat-card green"><div class="label"><span data-i18n="reçu">✅ Intérêts perçus</span></div><div class="value" id="sRecv">—</div>
+          <div class="sub"><span data-i18n="reçu">💵 Reçu (intérêts)</span></div></div>
+        <div class="stat-card orange"><div class="label"><span data-i18n="latents">⏳ Intérêts latents</span></div><div class="value" id="sAccrued">—</div>
+          <div class="sub"><span data-i18n="latents">Courus, non versés</span></div></div>
+        <div class="stat-card red"><div class="label"><span data-i18n="pertes">💥 Pertes</span></div><div class="value" id="sLoss">—</div>
+          <div class="sub" id="sLost"></div></div>
+        <div class="stat-card"><div class="label"><span data-i18n="net">📈 Gain net</span></div><div class="value" id="sNet">—</div>
+          <div class="sub">Gains − pertes</div></div>
+        <div class="stat-card violet"><div class="label"><span data-i18n="reinvesti">🔁 Réinvesti</span></div><div class="value" id="sReinvest">—</div>
+          <div class="sub"><span data-i18n="capitalRecycled">Capital recyclé</span></div></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:22px"><h3>💵 Mise par plateforme <span style="float:right;font-size:11px;font-weight:400"><button class="btn ghost" id="scopeAll" style="padding:1px 8px" onclick="setScope('all')">Tous</button> <button class="btn ghost" id="scopeActive" style="padding:1px 8px" onclick="setScope('active')">En cours</button></span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:130px"><div class="muted" style="font-size:11px;text-align:center;margin-bottom:2px">Mise investie</div><div class="chart-wrap" style="height:130px"><canvas id="chPlat"></canvas></div><div id="platLeg" class="muted" style="font-size:10.5px;margin-top:4px;text-align:center;line-height:1.5"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PERFORMANCE ============ -->
+    <section id="pagePerf" class="hidden">
+      <h2 class="page-title" data-i18n="pagePerf">📈 Évolution &amp; performance</h2>
+
+      <!-- historique du patrimoine (courbe mensuelle) -->
+      <div class="panel" style="margin-bottom:22px">
+        <h3><span data-i18n="histPat">📈 Évolution du patrimoine</span> <span class="muted" style="font-size:11px;font-weight:400" data-i18n="histSub">depuis le 1er investissement — fin de mois</span></h3>
+        <div id="histIdx" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:8px"></div>
+        <div class="chart-wrap" style="height:250px"><canvas id="chHist"></canvas></div>
+        <p class="muted" style="font-size:10.5px;margin-top:4px" data-i18n="histNote">Patrimoine = solde disponible + valeur des projets (calibré sur le patrimoine actuel) · Mises cumulées = total investi.</p>
+      </div>
+
+      <div class="panel" style="margin-bottom:14px"><h3>💰 Performance globale <span class="muted" style="font-size:11px;font-weight:400">— solde + valeur projets vs total déposé</span></h3><div id="perfPanel"></div></div>
+    </section>
+
+    <!-- ============ RETARDS & ÉCHÉANCES ============ -->
+    <section id="pageRetards" class="hidden">
+      <h2 class="page-title" data-i18n="pageRetards">⚠️ Retards &amp; échéances</h2>
+
+      <div class="panel" style="margin-bottom:22px"><h3>⚠️ Retards par plateforme</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:130px"><div class="muted" style="font-size:11px;text-align:center;margin-bottom:2px">Projets en retard (nb)</div><div class="chart-wrap" style="height:130px"><canvas id="chLatePlat"></canvas></div><div id="latePlatLeg" class="muted" style="font-size:10.5px;margin-top:4px;text-align:center;line-height:1.5"></div></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:22px"><h3>⚠️ Gravité des retards</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:130px"><div class="muted" style="font-size:11px;text-align:center;margin-bottom:2px">La Première Brique (nb projets)</div><div class="chart-wrap" style="height:130px"><canvas id="chSevLpb"></canvas></div><div id="sevLpbLeg" class="muted" style="font-size:10.5px;margin-top:4px;text-align:center;line-height:1.5"></div></div>
+          <div style="flex:1;min-width:130px"><div class="muted" style="font-size:11px;text-align:center;margin-bottom:2px">Bricks.co (nb projets)</div><div class="chart-wrap" style="height:130px"><canvas id="chSevBricks"></canvas></div><div id="sevBricksLeg" class="muted" style="font-size:10.5px;margin-top:4px;text-align:center;line-height:1.5"></div></div>
+        </div>
+      </div>
+
+      <div class="panel"><h3><span data-i18n="echeances">⏱️ Projets arrivés à échéance</span> <span class="muted" style="font-size:11px;font-weight:400">— finis ou devant l'être</span> <span style="float:right;font-size:11px;font-weight:400"><button class="btn ghost" id="echMode3" style="padding:1px 8px" onclick="setEchMode('3')" data-i18n="troisCat">3 catégories</button> <button class="btn ghost" id="echMode2" style="padding:1px 8px" onclick="setEchMode('2')" data-i18n="finiVsRetard">Fini vs Retard</button></span></h3>
+        <div class="chart-wrap" style="height:210px"><canvas id="chEch"></canvas></div>
+        <div id="echLeg" class="muted" style="font-size:10.5px;margin-top:6px;text-align:center;line-height:1.7"></div>
+      </div>
+    </section>
+
+    <!-- ============ PROJETS ============ -->
+    <section id="pageProjets" class="hidden">
+      <h2 class="page-title" data-i18n="projets">🏗️ Projets</h2>
+      <div class="toolbar">
+        <select id="fPlat" onchange="loadProjects()">
+          <option value="">Toutes plateformes</option>
+        </select>
+        <select id="fStatus" onchange="loadProjects()">
+          <option value="">Tous statuts</option>
+          <option value="en_collecte" data-i18n="enCollecte">En collecte</option>
+          <option value="en_cours" data-i18n="enCours">En cours</option>
+          <option value="retard" data-i18n="retard">⚠️ Retard de paiement</option>
+          <option value="rembourse" data-i18n="rembourse">Remboursé</option>
+          <option value="perdu" data-i18n="perdu">Perte / Défaut</option>
+        </select>
+        <input type="text" id="fSearch" placeholder="Rechercher…" oninput="loadProjects()" style="flex:1;min-width:160px">
+        <button class="btn" onclick="openProjectModal(null)">➕ Nouveau projet</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th onclick="sortBy('name')"><span data-i18n="nom">Projet</span></th>
+            <th onclick="sortBy('platform')"><span data-i18n="plateforme">Plateforme</span></th>
+            <th class="num" onclick="sortBy('invested')"><span data-i18n="mise">Mise</span></th>
+            <th class="num" onclick="sortBy('valuation')"><span data-i18n="valeur">Valeur</span></th>
+            <th class="num" onclick="sortBy('rate')"><span data-i18n="taux">Taux</span></th>
+            <th class="num" onclick="sortBy('real_annual_pct')"><span data-i18n="tauxReel">Taux réel</span></th>
+            <th onclick="sortBy('expected_end_date')"><span data-i18n="echeance">Échéance</span></th>
+            <th onclick="sortBy('status')"><span data-i18n="statut">Statut</span></th>
+            <th class="num" onclick="sortBy('total_gain')"><span data-i18n="net">Gain total</span></th>
+            <th class="num" onclick="sortBy('net')"><span data-i18n="netProjet">Net</span></th>
+            <th></th>
+          </tr></thead>
+          <tbody id="projBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ OPERATIONS ============ -->
+    <section id="pageOps" class="hidden">
+      <h2 class="page-title" data-i18n="ops">📜 Opérations <span class="ver" id="opsCount"></span></h2>
+      <div class="stat-grid">
+        <div class="stat-card green"><div class="label">💰 Total reçu</div><div class="value" id="sOpsIn">—</div>
+          <div class="sub">Remboursements, revenus, crédits</div></div>
+        <div class="stat-card red"><div class="label">💸 Total investi</div><div class="value" id="sOpsOut">—</div>
+          <div class="sub">Souscriptions, achats, frais</div></div>
+        <div class="stat-card blue"><div class="label">📈 Net des opérations</div><div class="value" id="sOpsNet">—</div>
+          <div class="sub">Reçu − investi</div></div>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="document.getElementById('importFile').click()">📥 Importer (xlsx)</button>
+        <input type="file" id="importFile" accept=".xlsx" class="hidden" onchange="doImport(this.files[0])">
+        <select id="fOpsPlat" onchange="loadOps()">
+          <option value="">Toutes plateformes</option>
+          <option value="bricks">Bricks.co</option>
+          <option value="lapremierebrique">La Première Brique</option>
+        </select>
+        <select id="fOpsProj" onchange="loadOps()">
+          <option value="">Tous projets</option>
+        </select>
+        <input type="search" id="fOpsSearch" placeholder="Rechercher…" oninput="debounceOps()">
+        <span class="muted" style="font-size:12px" id="opsPageInfo"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Date</th>
+            <th>Plateforme</th>
+            <th>Type</th>
+            <th>Projet</th>
+            <th class="num">Montant</th>
+            <th>Statut</th>
+          </tr></thead>
+          <tbody id="opsBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="justify-content:flex-end">
+        <button class="btn ghost" id="opsPrev" onclick="opsPage(-1)">← Précédent</button>
+        <button class="btn ghost" id="opsNext" onclick="opsPage(1)">Suivant →</button>
+      </div>
+    </section>
+
+    <!-- ============ RAPPORT SYNC ============ -->
+    <section id="pageReport" class="hidden">
+      <h2 class="page-title">📊 Rapport de synchronisation</h2>
+      <div class="stat-grid">
+        <div class="stat-card blue"><div class="label">Captures</div><div class="value" id="rCaptures">—</div></div>
+        <div class="stat-card blue"><div class="label">Projets détectés</div><div class="value" id="rDetected">—</div></div>
+        <div class="stat-card green"><div class="label">Champs remplis</div><div class="value" id="rFilled">—</div></div>
+        <div class="stat-card orange"><div class="label">Écarts conformité</div><div class="value" id="rDiffs">—</div></div>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost" onclick="loadReport()">🔄 Rafraîchir</button>
+        <span class="muted" style="font-size:12px" id="rDate"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Projet</th>
+            <th>Plateforme</th>
+            <th class="num">Site (€)</th>
+            <th class="num">Export (€)</th>
+            <th class="num">Écart (€)</th>
+            <th>Taux site</th>
+            <th>Statut site</th>
+            <th>Conformité</th>
+          </tr></thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="reportEmpty" style="font-size:13px;margin-top:10px"></p>
+    </section>
+
+    <!-- ============ PARAMS ============ -->
+    <section id="pageParams" class="hidden">
+      <h2 class="page-title" data-i18n="params">⚙️ Paramètres</h2>
+      <div class="chart-row" style="grid-template-columns:1fr 1fr;align-items:start">
+        <div class="panel">
+          <h3><span data-i18n="langue">🌐 Langue</span></h3>
+          <select id="selLang" onchange="setLang(this.value)" style="width:100%">
+            <option value="fr">🇫🇷 Français</option>
+            <option value="en">🇬🇧 English</option>
+          </select>
+        </div>
+        <div class="panel">
+          <h3>🔑 Mot de passe</h3>
+          <div class="form-grid">
+            <div class="full"><label>Ancien mot de passe</label><input type="password" id="pOld"></div>
+            <div class="full"><label>Nouveau mot de passe</label><input type="password" id="pNew"></div>
+          </div>
+          <div class="modal-actions" style="margin-top:14px"><button class="btn" onclick="changePwd()">Mettre à jour</button></div>
+        </div>
+        <div class="panel">
+          <h3>🔄 Synchronisation (extension navigateur)</h3>
+          <p class="muted" style="font-size:13px;margin-bottom:10px">Token pour l'extension « Crowdfunding Tracker Sync » (Paramètres de l'extension → coller le token). Aucun mot de passe requis côté extension.</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="syncToken" readonly style="flex:1;font-family:monospace;font-size:12px">
+            <button class="btn small ghost" onclick="copyToken()">📋 Copier</button>
+          </div>
+          <div class="modal-actions" style="margin-top:14px">
+            <button class="btn ghost" onclick="showReport()">📊 Voir le dernier rapport</button>
+          </div>
+          <h3 style="margin-top:20px">📦 Installation de l'extension</h3>
+          <p class="muted" style="font-size:13px;margin-bottom:10px">Téléchargez et installez l'extension de capture (v1.5.5) :</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn ghost" style="text-decoration:none" href="/api/extension-zip?browser=chromium" download>🌐 Chrome / Edge / Brave (.zip)</a>
+            <a class="btn ghost" style="text-decoration:none" href="/api/extension-zip?browser=firefox" download>🦊 Firefox (.zip)</a>
+          </div>
+          <p class="muted" style="font-size:12px;margin-top:8px;line-height:1.6">
+            <b>Chrome/Edge/Brave</b> : extraire le zip → <code>chrome://extensions</code> → Mode développeur → « Charger l'extension non empaquetée » → choisir le dossier.<br>
+            <b>Firefox</b> : <code>about:debugging</code> → Ce Firefox → « Charger un module temporaire » → sélectionner <code>manifest.json</code> (répéter après chaque redémarrage de Firefox).
+          </p>
+        </div>
+        <div class="panel">
+          <h3>💾 Sauvegarde &amp; restauration</h3>
+          <p class="muted" style="font-size:13px;margin-bottom:10px">Sauvegardez toute votre base (projets, opérations, réglages) dans un fichier JSON — restauration complète à tout moment.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ghost" onclick="doBackup()">⬇️ Télécharger la sauvegarde</button>
+            <button class="btn ghost" onclick="$('restoreFile').click()">♻️ Restaurer</button>
+            <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" onchange="doRestore(this)">
+          </div>
+          <p class="muted" id="restoreMsg" style="font-size:12px;margin-top:8px"></p>
+        </div>
+        <div class="panel">
+          <h3>📤 Export</h3>
+          <p class="muted" style="font-size:13px;margin-bottom:14px">Télécharger tous les projets avec leurs indicateurs calculés (CSV compatible Excel).</p>
+          <button class="btn ghost" onclick="doExport()">⬇️ Exporter en CSV</button>
+          <h3 style="margin-top:22px">ℹ️ À propos</h3>
+          <p class="muted" style="font-size:13px">Crowdfunding Tracker — version <span id="verParam">—</span><br>
+          Suivi des investissements (Bricks.co, La Première Brique, …) — saisie manuelle, import xlsx et synchronisation par extension navigateur.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODAL PROJET ================= -->
+<div id="projModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="pmTitle">➕ Nouveau projet</h3>
+    <div class="form-grid">
+      <div><label>Plateforme</label>
+        <select id="pmPlat"></select></div>
+      <div><label>Statut</label>
+        <select id="pmStatus">
+          <option value="en_collecte" data-i18n="enCollecte">En collecte</option>
+          <option value="en_cours" selected data-i18n="enCours">En cours</option>
+          <option value="retard" data-i18n="retard">⚠️ Retard de paiement</option>
+          <option value="rembourse" data-i18n="rembourse">Remboursé</option>
+          <option value="perdu" data-i18n="perdu">Perte / Défaut</option>
+        </select></div>
+      <div class="full"><label>Nom du projet</label><input id="pmName" placeholder="Ex. Résidence Les Cèdres"></div>
+      <div><label>Ville</label><input id="pmCity" placeholder="Ex. Lyon"></div>
+      <div><label>Réinvesti depuis le projet</label>
+        <select id="pmReinvest"><option value="">— Aucun —</option></select></div>
+      <div><label>Mise (€)</label><input id="pmInvested" type="number" step="0.01" min="0" value="1000"></div>
+      <div><label>Taux brut annuel (%)</label><input id="pmRate" type="number" step="0.01" min="0" value="9"></div>
+      <div><label>Durée prévue (mois)</label><input id="pmDuration" type="number" min="0" value="12"></div>
+      <div><label>Date d'investissement</label><input id="pmStart" type="date"></div>
+      <div><label>Échéance prévue <span class="muted">(auto si vide)</span></label><input id="pmEnd" type="date"></div>
+      <div><label>Date de fin réelle</label><input id="pmActual" type="date"></div>
+      <div><label>Capital remboursé (€)</label><input id="pmRepaid" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Intérêts perçus (€) <span class="muted">brut</span></label><input id="pmInterest" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Intérêts perçus (€) <span class="muted">net</span></label><input id="pmInterestNet" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Revenus restants estimés (€) <span class="muted">brut</span></label><input id="pmIntRemain" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Revenus restants estimés (€) <span class="muted">net</span></label><input id="pmIntRemainNet" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Taux réel réalisé (%)</label><input id="pmRealRate" type="number" step="0.01" min="0" value="0">
+        <div class="hint">Laisser 0 : calculé automatiquement pour les projets terminés</div></div>
+      <div><label>Valeur actuelle des bricks (€)</label><input id="pmValuation" type="number" step="0.01" min="0" value="0"></div>
+      <div><label>Type de contrat</label>
+        <select id="pmContractType">
+          <option value="">Standard (capital remboursé)</option>
+          <option value="royalty">Royalties (capital à la revente)</option>
+        </select></div>
+      <div class="full"><label>Notes</label><textarea id="pmNotes" placeholder="Commentaires, liens, suivi…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('projModal')">Annuler</button>
+      <button class="btn danger hidden" id="pmDelete" onclick="deleteProject()">🗑️ Supprimer</button>
+      <button class="btn" onclick="saveProject()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+// ============================================================ helpers
+const $ = id => document.getElementById(id);
+const FMT = new Intl.NumberFormat('fr-FR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const FMT0 = new Intl.NumberFormat('fr-FR', {maximumFractionDigits:0});
+const euro = v => (v==null||isNaN(v)) ? '—' : FMT.format(v)+' €';
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ---------- i18n (français / english)
+const I18N = {
+  fr: {
+    dash:'Dashboard', projets:'Projets', ops:'Opérations', params:'Paramètres', logout:'Déconnexion',
+    retards:'Retards', pageRetards:'⚠️ Retards & échéances', perf:'Performance', pagePerf:'📈 Évolution & performance',
+    discreet:'Discret', normal:'Normal',
+    mise:'Mise totale', reçu:'Reçu (intérêts)', latents:'Intérêts latents', pertes:'Pertes',
+    net:'Gain net', reinvesti:'Réinvesti', capitalRecycled:'Capital recyclé',
+    late:'⚠️ Projets en retard', perfGlobale:'💰 Performance globale',
+    parPlateforme:'Par plateforme', gravite:'⚠️ Gravité des retards',
+    echeances:'⏱️ Projets arrivés à échéance', troisCat:'3 catégories', finiVsRetard:'Fini vs Retard',
+    histPat:'📈 Évolution du patrimoine', histMises:'Mises cumulées',
+    histSub:'depuis le 1er investissement — fin de mois',
+    histNote:'Patrimoine = solde disponible + valeur des projets (calibré sur le patrimoine actuel) · Mises cumulées = total investi.',
+    histCmp:'Comparer avec :',
+    updateDispo:'Nouvelle version disponible', updateIgnore:'Ignorer',
+    finiTemps:'Fini dans les temps', finiRetard:'Fini en retard', enRetardActuel:'En retard (actuel)',
+    finiCourt:'Fini', enRetardCourt:'En retard',
+    tous:'Tous', enCours:'En cours', nom:'Nom', plateforme:'Plateforme', ville:'Ville',
+    statut:'Statut', echeance:'Échéance', taux:'Taux', valeur:'Valeur', duree:'Durée',
+    tauxReel:'Taux réel', tauxReelTip:'Rendement annuel réellement obtenu — calculé à la fin du projet (capital + intérêts reçus vs mise, annualisé sur la durée réelle). 🟢 tenu (±0,5 pt) · 🟠 sous l’annoncé · 🔴 négatif',
+    debut:'Début', capital:'Capital restant', interetsRecus:'Intérêts reçus', netProjet:'Net',
+    recherche:'Rechercher…', toutesPlat:'Toutes plateformes', tousStatuts:'Tous statuts',
+    enCollecte:'En collecte', retard:'⚠️ Retard de paiement', rembourse:'Remboursé', perdu:'Perte / Défaut',
+    sauvegarder:'💾 Sauvegarde & restauration', extension:'📦 Installation de l’extension',
+    langue:'🌐 Langue', exporter:'📤 Export', aPropos:'ℹ️ À propos',
+    date:'Date', type:'Type', montant:'Montant', source:'Source', operations:'Opérations',
+    nouveauProjet:'➕ Nouveau projet', enregistrer:'💾 Enregistrer', annuler:'Annuler',
+  },
+  en: {
+    dash:'Dashboard', projets:'Projects', ops:'Operations', params:'Settings', logout:'Log out',
+    retards:'Delays', pageRetards:'⚠️ Delays & terms', perf:'Performance', pagePerf:'📈 Evolution & performance',
+    discreet:'Discreet', normal:'Normal',
+    mise:'Total invested', reçu:'Received (interest)', latents:'Accrued interest', pertes:'Losses',
+    net:'Net gain', reinvesti:'Reinvested', capitalRecycled:'Recycled capital',
+    late:'⚠️ Late projects', perfGlobale:'💰 Overall performance',
+    parPlateforme:'By platform', gravite:'⚠️ Delay severity',
+    echeances:'⏱️ Projects at term', troisCat:'3 categories', finiVsRetard:'Done vs Late',
+    histPat:'📈 Net worth evolution', histMises:'Cumulative invested',
+    histSub:'since first investment — month-end',
+    histNote:'Net worth = available balance + projects value (calibrated on current net worth) · Cumulative invested = total stake.',
+    histCmp:'Compare with:',
+    updateDispo:'New version available', updateIgnore:'Dismiss',
+    finiTemps:'Finished on time', finiRetard:'Finished late', enRetardActuel:'Currently late',
+    finiCourt:'Done', enRetardCourt:'Late',
+    tous:'All', enCours:'Active', nom:'Name', plateforme:'Platform', ville:'City',
+    statut:'Status', echeance:'Maturity', taux:'Rate', valeur:'Value', duree:'Duration',
+    tauxReel:'Real rate', tauxReelTip:'Actual annual return — computed at project end (capital + interest received vs invested, annualized over the real duration). 🟢 on target (±0.5 pt) · 🟠 below advertised · 🔴 negative',
+    debut:'Start', capital:'Capital due', interetsRecus:'Interest received', netProjet:'Net',
+    recherche:'Search…', toutesPlat:'All platforms', tousStatuts:'All statuses',
+    enCollecte:'Collecting', retard:'⚠️ Late payment', rembourse:'Repaid', perdu:'Loss / Default',
+    sauvegarder:'💾 Backup & restore', extension:'📦 Extension installation',
+    langue:'🌐 Language', exporter:'📤 Export', aPropos:'ℹ️ About',
+    date:'Date', type:'Type', montant:'Amount', source:'Source', operations:'Operations',
+    nouveauProjet:'➕ New project', enregistrer:'💾 Save', annuler:'Cancel',
+  },
+};
+let LANG = localStorage.getItem('ct_lang') || 'fr';
+const t = k => (I18N[LANG] && I18N[LANG][k]) || (I18N.fr[k]) || k;
+function setLang(l) {
+  LANG = l; localStorage.setItem('ct_lang', l);
+  const sel = $('selLang'); if (sel) sel.value = l;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.dataset.i18n; if (k) el.textContent = t(k); });
+  if (currentPage==='dash') loadSummary(); else if (currentPage==='projets') loadProjects();
+  else if (currentPage==='ops') { loadOpsStats(); loadOps(); }
+}
+let PROJECTS = [], SUMMARY = null, PLATS = {};
+let sortKey='start_date', sortDir=-1, currentProject=null;
+
+function toast(msg, kind='') { const t=$('toast'); t.textContent=msg; t.className=kind?('ok '+kind):'ok';
+  t.classList.remove('hidden'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.add('hidden'), 2600); }
+async function api(path, opts={}) {
+  const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...opts});
+  if (res.status===401) { showLogin(); throw new Error('auth'); }
+  if (!res.ok) { let d=null; try{d=await res.json()}catch(e){}
+    throw new Error((d&&d.detail)||('Erreur '+res.status)); }
+  return res.status===204?null:res.json();
+}
+
+// ============================================================ auth
+function showLogin() { $('viewLogin').classList.remove('hidden'); $('app').classList.add('hidden'); }
+function showApp()   { $('viewLogin').classList.add('hidden'); $('app').classList.remove('hidden'); }
+async function doLogin() {
+  $('loginErr').textContent='';
+  try {
+    await api('/api/auth/login', {method:'POST', body:JSON.stringify({username:$('loginUser').value.trim(), password:$('loginPass').value})});
+    await boot();
+  } catch(e) { $('loginErr').textContent = e.message==='auth' ? 'Identifiants invalides' : e.message; }
+}
+async function doLogout() { try{await api('/api/auth/logout',{method:'POST'})}catch(e){}; showLogin(); }
+async function changePwd() {
+  try {
+    await api('/api/auth/change-password', {method:'POST', body:JSON.stringify({old_password:$('pOld').value, new_password:$('pNew').value})});
+    $('pOld').value=''; $('pNew').value=''; toast('✅ Mot de passe mis à jour');
+  } catch(e) { toast('❌ '+e.message, 'err'); }
+}
+
+// ============================================================ pages
+let currentPage='dash';
+function switchPage(p) {
+  currentPage=p;
+  document.querySelectorAll('#sidebar nav a[data-page]').forEach(a=>a.classList.toggle('active', a.dataset.page===p));
+  ['pageDash','pagePerf','pageRetards','pageProjets','pageOps','pageReport','pageParams'].forEach(id=>$(id).classList.toggle('hidden', id!=='page'+p[0].toUpperCase()+p.slice(1)));
+  if (p==='dash' || p==='perf' || p==='retards') loadSummary();
+  if (p==='projets') loadProjects();
+  if (p==='ops') { loadOpsStats(); loadOps(); }
+  if (p==='report') loadReport();
+}
+function pageId(p){ return 'page'+p[0].toUpperCase()+p.slice(1); }
+
+// ============================================================ operations
+let OPS = {items:[], total:0, page:0, limit:200};
+let opsDebounce=null;
+function debounceOps(){ clearTimeout(opsDebounce); opsDebounce=setTimeout(loadOps, 350); }
+function opsPage(delta){
+  OPS.page = Math.max(0, OPS.page+delta);
+  loadOps();
+}
+function fillOpsProjFilter(){
+  const sel=$('fOpsProj'); const cur=sel.value;
+  sel.innerHTML = '<option value="">Tous projets</option>'+
+    PROJECTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  sel.value = cur;
+}
+async function loadOps() {
+  try {
+    const plat=$('fOpsPlat').value, proj=$('fOpsProj').value, q=$('fOpsSearch').value.trim();
+    const params = new URLSearchParams({limit:OPS.limit, offset:OPS.page*OPS.limit});
+    if (plat) params.set('platform', plat);
+    if (proj) params.set('project_id', proj);
+    if (q) params.set('q', q);
+    const d = await api('/api/operations?'+params);
+    OPS = {...OPS, items:d.items, total:d.total};
+    $('opsCount').textContent = d.total.toLocaleString('fr-FR')+' opérations';
+    const pages = Math.max(1, Math.ceil(d.total/OPS.limit));
+    OPS.page = Math.min(OPS.page, pages-1);
+    $('opsPageInfo').textContent = `Page ${OPS.page+1}/${pages}`;
+    $('opsPrev').disabled = OPS.page===0;
+    $('opsNext').disabled = OPS.page>=pages-1;
+    renderOps();
+  } catch(e) { if(e.message!=='auth') toast('❌ '+e.message,'err'); }
+}
+function renderOps() {
+  $('opsBody').innerHTML = OPS.items.length===0
+    ? `<tr><td colspan="6" class="empty">📭 Aucune opération. Clique sur « Importer » pour charger un export xlsx (Bricks.co ou La Première Brique).</td></tr>`
+    : OPS.items.map(o=>{
+        const cls = o.amount>=0 ? 'pos' : 'neg';
+        const amt = (o.amount>=0?'+':'−')+FMT.format(Math.abs(o.amount))+' €';
+        const bad = o.status==='Validée'||o.status==='Réussi'
+          ? `<span class="badge rembourse">${esc(o.status)}</span>`
+          : `<span class="badge perdu">${esc(o.status)}</span>`;
+        return `<tr>
+          <td style="white-space:nowrap">${esc(o.op_date)}</td>
+          <td><span class="plat"><span class="dot" style="background:${PLAT_COLORS[o.platform]||'#4f8cff'}"></span>${esc(o.platform_label)}</span></td>
+          <td title="${esc(o.details)}">${esc(o.type.length>60 ? o.type.slice(0,60)+'…' : o.type)}</td>
+          <td>${o.project_name?esc(o.project_name):'<span class="muted">—</span>'}</td>
+          <td class="num ${cls}">${amt}</td>
+          <td>${bad}</td>
+        </tr>`;
+      }).join('');
+}
+async function loadOpsStats() {
+  try {
+    const s = await api('/api/operations/stats');
+    $('sOpsIn').textContent = euro(s.total_in);
+    $('sOpsOut').textContent = euro(s.total_out);
+    $('sOpsNet').textContent = euro(s.net);
+    $('sOpsNet').style.color = s.net>=0 ? 'var(--green)' : 'var(--red)';
+  } catch(e) {}
+}
+async function doImport(file) {
+  if (!file) return;
+  if (!/\.xlsx?$/i.test(file.name)) { toast('❌ Format attendu : .xlsx','err'); return; }
+  const btn = document.querySelector('#pageOps .toolbar .btn');
+  const oldTxt = btn.textContent;
+  btn.textContent = '⏳ Import en cours…'; btn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/import', {method:'POST', body:fd});
+    if (res.status===401) { showLogin(); return; }
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || ('Erreur '+res.status));
+    toast(`✅ ${d.platform_label} : ${d.imported} opérations importées, ${d.projects_created} projets créés, ${d.duplicates} doublons ignorés`);
+    await loadProjects(); fillOpsProjFilter(); loadOpsStats(); loadOps();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+  finally { btn.textContent = oldTxt; btn.disabled = false; $('importFile').value=''; }
+}
+
+// ============================================================ sync (extension)
+async function loadToken() {
+  try {
+    const d = await api('/api/sync/token');
+    $('syncToken').value = d.token;
+  } catch(e) {}
+}
+function copyToken() {
+  const t = $('syncToken');
+  if (!t.value) return;
+  navigator.clipboard.writeText(t.value).then(()=>toast('📋 Token copié'));
+}
+function showReport() { switchPage('report'); }
+async function loadReport() {
+  try {
+    const d = await api('/api/scrape/report');
+    const r = d.report;
+    if (!r) {
+      $('rCaptures').textContent='—'; $('rDetected').textContent='—';
+      $('rFilled').textContent='—'; $('rDiffs').textContent='—';
+      $('rDate').textContent=''; $('reportBody').innerHTML='';
+      $('reportEmpty').textContent='📭 Aucun rapport pour l\'instant. Ouvre l\'extension « Crowdfunding Tracker Sync », navigue dans tes espaces Bricks/LPB puis clique « Envoyer au tracker ».';
+      return;
+    }
+    const s = r.summary||{};
+    $('rCaptures').textContent = s.captures ?? '—';
+    $('rDetected').textContent = s.projects_detected ?? '—';
+    $('rFilled').textContent = s.fields_filled ?? '—';
+    const conf = r.conformity||[];
+    const diffs = conf.filter(c=>!c.ok);
+    $('rDiffs').textContent = diffs.length;
+    $('rDate').textContent = r.created_at ? 'Dernier envoi : '+String(r.created_at).slice(0,19).replace('T',' ') : '';
+    if (!conf.length) {
+      $('reportBody').innerHTML='';
+      $('reportEmpty').textContent = s.projects_detected
+        ? '⚠️ '+(s.projects_detected||0)+' projets détectés mais aucun montant exploitable pour la conformité (les champs « montant » n\'ont pas été trouvés dans les captures).'
+        : '📭 Aucun projet exploitable dans les captures.';
+      return;
+    }
+    $('reportEmpty').textContent='';
+    $('reportBody').innerHTML = conf.map(c=>{
+      const cls = c.ok ? 'rembourse' : 'perdu';
+      const lbl = c.ok ? '✅ OK' : '⚠️ Écart';
+      return `<tr>
+        <td>${esc(c.project)}</td>
+        <td><span class="plat"><span class="dot" style="background:${PLAT_COLORS[c.platform]||'#4f8cff'}"></span>${esc(PLATS[c.platform]||c.platform)}</span></td>
+        <td class="num">${euro(c.site_invested)}</td>
+        <td class="num">${euro(c.export_invested)}</td>
+        <td class="num ${c.ok?'pos':'neg'}">${c.diff>0?'+':'−'}${FMT.format(Math.abs(c.diff))} €</td>
+        <td class="num">${c.site_rate!=null?FMT.format(c.site_rate)+' %':'—'}</td>
+        <td>${esc(c.site_status||'—')}</td>
+        <td><span class="badge ${cls}">${lbl}</span></td>
+      </tr>`;
+    }).join('');
+  } catch(e) { if(e.message!=='auth') toast('❌ '+e.message,'err'); }
+}
+
+// ============================================================ data
+const statusLabel = s => ({en_collecte:t('enCollecte'), en_cours:t('enCours'), retard:t('retard'), rembourse:t('rembourse'), perdu:t('perdu')}[s] || s);
+const PLAT_COLORS = {bricks:'#f97316', lapremierebrique:'#a371f7'};
+
+// ---------- mode discret : masque les montants € (remplacés par des % / •••)
+let discret = localStorage.getItem('ct_discret')==='1';
+function mon(v) { return discret ? '•••' : euro(v); }                 // montant masqué
+function pctOf(v, tot) { return tot>0 ? FMT.format(v/tot*100)+' %' : '—'; }  // part en %
+function toggleDiscret() {
+  discret = !discret;
+  localStorage.setItem('ct_discret', discret?'1':'0');
+  updateDiscretBtn();
+  loadSummary();
+}
+function updateDiscretBtn() {
+  const b = $('btnDiscret');
+  if (!b) return;
+  b.innerHTML = discret ? '👁 <span>'+t('normal')+'</span>' : '🔒 <span>'+t('discreet')+'</span>';
+  b.style.background = discret ? '#2a3340' : '';
+}
+
+async function loadPlats() {
+  try { const d = await api('/api/platforms'); PLATS = d.platforms; }
+  catch(e) { PLATS = {bricks:'Bricks.co', lapremierebrique:'La Première Brique'}; }
+  const sel=$('fPlat'); sel.innerHTML = '<option value="">Toutes plateformes</option>'+
+    Object.entries(PLATS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
+  $('pmPlat').innerHTML = Object.entries(PLATS).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('');
+}
+
+// ---------- dashboard
+let chPlat=null, chLatePlat=null, chSevLpb=null, chSevBricks=null, chEch=null, chHist=null;
+let dashScope='all';  // 'all' = tous les projets, 'active' = projets en cours uniquement
+let echMode='3';      // '3' = 3 catégories, '2' = comparaison Fini vs Retard
+function setScope(s) {
+  dashScope = s;
+  $('scopeAll').style.background = s==='all' ? '#2a3340' : '';
+  $('scopeActive').style.background = s==='active' ? '#2a3340' : '';
+  loadSummary();
+}
+function setEchMode(m) {
+  echMode = m;
+  $('echMode3').style.background = m==='3' ? '#2a3340' : '';
+  $('echMode2').style.background = m==='2' ? '#2a3340' : '';
+  loadSummary();
+}
+async function loadSummary() {
+  try {
+    // liste complète (le filtre de la page Projets ne doit pas polluer le dashboard)
+    PROJECTS = (await api('/api/projects')).projects;
+    const d = await api('/api/summary');
+    SUMMARY = d;
+    $('verDash').textContent='v'+ (await api('/api/version')).version;
+    $('sInvested').textContent = mon(d.total_invested);
+    $('sCounts').textContent = d.counts.total+' projet'+(d.counts.total>1?'s':'');
+    $('sCapital').textContent = mon(d.capital_due);
+    $('sActive').textContent = d.counts.active+' en cours';
+    $('sRecv').textContent = mon(d.interest_received);
+    $('sAccrued').textContent = mon(d.accrued_interest);
+    $('sLoss').textContent = mon(d.loss + (d.unrealized_loss||0));
+    const lParts = [];
+    if (d.counts.lost>0) lParts.push(d.counts.lost+' en perte');
+    if ((d.unrealized_loss||0)>0.005) lParts.push('dont '+mon(d.unrealized_loss)+' latentes (valeur)');
+    $('sLost').textContent = lParts.join(' · ') || '—';
+    $('sNet').textContent = mon(d.net);
+    $('sNet').style.color = d.net>=0 ? 'var(--green)' : 'var(--red)';
+    $('sReinvest').textContent = mon(d.reinvested);
+    updateDiscretBtn();
+
+    // donut mise investie (filtre Tous / En cours : exclut remboursés et pertes)
+    const scopeProjs = dashScope==='active' ? PROJECTS.filter(p=>!['rembourse','perdu'].includes(p.status)) : PROJECTS;
+    const byP = {};
+    scopeProjs.forEach(p=>{ const k=p.platform; (byP[k]=byP[k]||{inv:0,count:0}); byP[k].inv+=(p.invested||0); byP[k].count++; });
+    const pKeys = Object.keys(byP).filter(k=>byP[k].inv>0);
+    const pLabels = {bricks:'Bricks.co', lapremierebrique:'La Première Brique'};
+    const labels = pKeys.map(k=>pLabels[k]||k);
+    const vals = pKeys.map(k=>byP[k].inv);
+    const colors = pKeys.map(k=>PLAT_COLORS[k]||'#4f8cff');
+    const totalMise = vals.reduce((a,b)=>a+b,0);
+    if (chPlat) chPlat.destroy();
+    chPlat = new Chart($('chPlat'), {type:'doughnut', data:{labels, datasets:[{data:vals, backgroundColor:colors, borderColor:'#1a2029', borderWidth:2}]},
+      options:{maintainAspectRatio:false, cutout:'62%', plugins:{legend:{position:'bottom', labels:{color:'#8b98a9', boxWidth:10, font:{size:11}}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${discret?pctOf(c.parsed,totalMise):euro(c.parsed)}`}}}}});
+    // légende mise investie : montant (ou % en mode discret) + nb projets
+    $('platLeg').innerHTML = pKeys.map((k,i)=>`<span style="white-space:nowrap"><span style="color:${colors[i]}">●</span> ${esc(labels[i])} : ${discret?pctOf(vals[i],totalMise):euro(vals[i])} · ${byP[k].count} projet${byP[k].count>1?'s':''}</span>`).join('<br>');
+
+    // ⚠️ retards : donut par plateforme (nb) + gravités LPB (nb) / Bricks (mise)
+    const late = PROJECTS.length? PROJECTS.filter(p=>p.is_late || p.status==='retard') : [];
+    const sevColors = {critique:'#ff5c5c', important:'#ff9f43', significatif:'#fdcb6e', negligeable:'#2ecc71'};
+    const sevNames = {critique:'Critique', important:'Important', significatif:'Significatif', negligeable:'Négligeable'};
+    const sevOrder = ['critique','important','significatif','negligeable'];
+    const mkDonut = (canvasId, chartVar, labels, vals, colors, tooltipFmt, empty) => {
+      const cv = $(canvasId); if (!cv) return;
+      if (chartVar) chartVar.destroy();
+      const has = vals.some(v=>v>0);
+      chartVar = new Chart(cv, {type:'doughnut', data:{labels, datasets:[{data: vals.map(v=>Math.max(v,0)), backgroundColor: has?colors:['#232b36'], borderColor:'#1a2029', borderWidth:2}]},
+        options:{maintainAspectRatio:false, cutout:'62%', plugins:{legend:{position:'bottom', labels:{color:'#8b98a9', boxWidth:10, font:{size:10}}},
+          tooltip:{callbacks:{label:c=>` ${c.label}: ${tooltipFmt?tooltipFmt(c.parsed):c.parsed}`}}}}});
+      return chartVar;
+    };
+    // 1) retards par plateforme (nb projets) + légende nb + montant (ou % discret)
+    const lateByPlat = {bricks:{n:0,inv:0}, lapremierebrique:{n:0,inv:0}};
+    late.forEach(p=>{ const t = lateByPlat[p.platform] || (lateByPlat[p.platform]={n:0,inv:0}); t.n+=1; t.inv+=(p.invested||0); });
+    const totalLateInv = Object.values(lateByPlat).reduce((a,t)=>a+t.inv,0);
+    chLatePlat = mkDonut('chLatePlat', chLatePlat,
+      ['Bricks.co','La Première Brique'],
+      [lateByPlat.bricks.n, lateByPlat.lapremierebrique.n],
+      [PLAT_COLORS.bricks||'#4f8cff', PLAT_COLORS.lapremierebrique||'#9b59b6'],
+      v=>`${v} projet${v>1?'s':''}`, late.length===0);
+    $('latePlatLeg').innerHTML = Object.entries(lateByPlat).filter(([,t])=>t.n>0)
+      .map(([k,t])=>`<span style="white-space:nowrap"><span style="color:${PLAT_COLORS[k]||'#4f8cff'}">●</span> ${esc(k==='bricks'?'Bricks.co':'La Première Brique')} : ${t.n} projet${t.n>1?'s':''} · ${discret?pctOf(t.inv,totalLateInv):euro(t.inv)}</span>`).join('<br>')
+      || '<span>—</span>';
+    // 2) gravité LPB + Bricks : nombre de projets ET montant investi par gravité
+    const sevLpb = {critique:{n:0,inv:0}, important:{n:0,inv:0}, significatif:{n:0,inv:0}, negligeable:{n:0,inv:0}};
+    const sevBricks = {critique:{n:0,inv:0}, important:{n:0,inv:0}, significatif:{n:0,inv:0}, negligeable:{n:0,inv:0}};
+    late.forEach(p=>{
+      const s = p.late_severity||'important';
+      const t = p.platform==='bricks' ? sevBricks : sevLpb;
+      t[s].n += 1; t[s].inv += (p.invested||0);
+    });
+    const sevLegend = (data) => {
+      const tot = sevOrder.reduce((a,k)=>a+data[k].inv,0);
+      return sevOrder.map(k=>data[k].n>0
+        ? `<span style="color:${sevColors[k]};white-space:nowrap">${sevNames[k]} : ${data[k].n} projet${data[k].n>1?'s':''} · ${discret?pctOf(data[k].inv,tot):euro(data[k].inv)}</span>` : null)
+        .filter(Boolean).join('<br>') || '<span>—</span>';
+    };
+    chSevLpb = mkDonut('chSevLpb', chSevLpb, sevOrder.map(k=>sevNames[k]), sevOrder.map(k=>sevLpb[k].n),
+      sevOrder.map(k=>sevColors[k]), v=>`${v} projet${v>1?'s':''}`, late.filter(p=>p.platform!=='bricks').length===0);
+    $('sevLpbLeg').innerHTML = sevLegend(sevLpb);
+    chSevBricks = mkDonut('chSevBricks', chSevBricks, sevOrder.map(k=>sevNames[k]), sevOrder.map(k=>sevBricks[k].n),
+      sevOrder.map(k=>sevColors[k]), v=>`${v} projet${v>1?'s':''}`, late.filter(p=>p.platform==='bricks').length===0);
+    $('sevBricksLeg').innerHTML = sevLegend(sevBricks);
+    // ⏱️ projets arrivés à échéance : fini à temps / fini en retard / en retard actuellement (barres empilées par plateforme)
+    const echCols = {ontime:'#3fb950', finLate:'#f0883e', latenow:'#f85149'};
+    const ech = {};  // plateforme -> {ontime, finLate, latenow, inv}
+    PROJECTS.forEach(p=>{
+      if (!['rembourse','perdu'].includes(p.status) && !p.is_late && p.status!=='retard') return; // hors scope
+      const t = ech[p.platform] || (ech[p.platform]={ontime:0, finLate:0, latenow:0, inv:0});
+      t.inv += (p.invested||0);
+      if (['rembourse','perdu'].includes(p.status)) {
+        // fini : en retard seulement si date de fin réelle > échéance prévue
+        if (p.actual_end_date && p.expected_end_date && p.actual_end_date > p.expected_end_date) t.finLate += 1;
+        else t.ontime += 1;
+      } else {
+        t.latenow += 1;
+      }
+    });
+    const eKeys = Object.keys(ech);
+    const eLabels = eKeys.map(k=>pLabels[k]||k);
+    const echInvTot = eKeys.reduce((a,k)=>a+ech[k].inv,0);
+    const echSet = (key, label) => ({label, data:eKeys.map(k=>ech[k][key]), backgroundColor:echCols[key], borderColor:'#1a2029', borderWidth:1});
+    const echDatasets = echMode==='3'
+      ? [echSet('ontime', t('finiTemps')), echSet('finLate', t('finiRetard')), echSet('latenow', t('enRetardActuel'))]
+      : [echSet('ontime', t('finiCourt')),
+         {label:t('enRetardCourt'), data:eKeys.map(k=>ech[k].finLate+ech[k].latenow), backgroundColor:echCols.latenow, borderColor:'#1a2029', borderWidth:1}];
+    if (chEch) chEch.destroy();
+    chEch = new Chart($('chEch'), {type:'bar', data:{labels:eLabels, datasets:echDatasets},
+      options:{maintainAspectRatio:false, scales:{x:{stacked:true, grid:{color:'#232b36'}, ticks:{color:'#8b98a9', font:{size:11}}},
+        y:{stacked:true, beginAtZero:true, ticks:{precision:0, color:'#8b98a9', font:{size:10}}}},
+        plugins:{legend:{position:'bottom', labels:{color:'#8b98a9', boxWidth:10, font:{size:10}}},
+          tooltip:{callbacks:{label:c=>{ const tot=ech[eKeys[c.dataIndex]]||{};
+            const n = (c.datasetIndex===1 && echMode==='2') ? (tot.finLate||0)+(tot.latenow||0) : c.parsed.y;
+            return ` ${c.dataset.label}: ${n} projet${n>1?'s':''}`; }}}}}});
+    // légende nb + montant (ou % en discret) par plateforme
+    $('echLeg').innerHTML = eKeys.length===0
+      ? '<span>—</span>'
+      : eKeys.map(k=>{
+          const tot = ech[k];
+          const mise = discret ? pctOf(tot.inv, echInvTot) : euro(tot.inv);
+          if (echMode==='2')
+            return `<span style="white-space:nowrap"><span style="color:${PLAT_COLORS[k]||'#4f8cff'}">●</span> ${esc(pLabels[k]||k)} : <span style="color:#3fb950">${tot.ontime} ${t('finiCourt')}</span> · <span style="color:#f85149">${tot.finLate+tot.latenow} ${t('enRetardCourt')}</span> · ${mise}</span>`;
+          const parts = [];
+          if (tot.ontime>0)  parts.push(`<span style="color:#3fb950">${tot.ontime} ${t('finiTemps')}</span>`);
+          if (tot.finLate>0) parts.push(`<span style="color:#f0883e">${tot.finLate} ${t('finiRetard')}</span>`);
+          if (tot.latenow>0) parts.push(`<span style="color:#f85149">${tot.latenow} ${t('enRetardActuel')}</span>`);
+          return `<span style="white-space:nowrap"><span style="color:${PLAT_COLORS[k]||'#4f8cff'}">●</span> ${esc(pLabels[k]||k)} : ${parts.join(' · ')} · ${mise}</span>`;
+        }).join('<br>');
+    $('echMode3').style.background = echMode==='3' ? '#2a3340' : '';
+    $('echMode2').style.background = echMode==='2' ? '#2a3340' : '';
+    $('scopeAll').style.background = dashScope==='all' ? '#2a3340' : '';
+    $('scopeActive').style.background = dashScope==='active' ? '#2a3340' : '';
+    loadOverview();
+    loadPatrimoineHistory();
+  } catch(e) { if(e.message!=='auth') toast('❌ '+e.message,'err'); }
+}
+
+// ---------- performance globale (solde + valeur projets vs total déposé)
+const th = (t,a)=>`<th style="text-align:${a||'left'};padding:4px 8px">${t}</th>`;
+const td = (v,a)=>`<td style="text-align:${a||'left'};padding:4px 8px">${v}</td>`;
+async function loadOverview() {
+  try {
+    const d = await api('/api/overview');
+    const names = {bricks:'Bricks.co', lapremierebrique:'La Première Brique'};
+    let rows = '';
+    let tDep=0, tPat=0, tGain=0, tRatio=null;
+    d.platforms.forEach(p=>{
+      tDep += p.deposited; tPat += p.patrimoine; if (p.gain!=null) tGain += p.gain;
+      const cls = p.gain!=null ? (p.gain>=0?'var(--green)':'var(--red)') : '';
+      const gainTxt = p.gain!=null ? `<span style="color:${cls}">${discret ? (p.gain>=0?'+':'')+FMT.format((p.ratio||0)*100)+' %' : (p.gain>=0?'+':'')+euro(p.gain)+' ('+FMT.format((p.ratio||0)*100)+' %)'}</span>` : '<span class="muted">—</span>';
+      const annTxt = p.annual_pct!=null ? `${FMT.format(p.annual_pct)} %/an` : '<span class="muted">—</span>';
+      const editBtn = `<button class="btn ghost" style="padding:1px 8px;font-size:11px" onclick="editMeta('${p.platform}')" title="Modifier déposé / solde / valeur">✏️</button>`;
+      rows += `<tr>${td(names[p.platform]||p.platform)}
+        ${td(mon(p.deposited),'right')}${td(mon(p.balance),'right')}
+        ${td(mon(p.invested_value)+(p.invested_value_auto?' <span class="muted" title="Capital restant dû (auto)">auto</span>':''),'right')}
+        ${td(`<b>${mon(p.patrimoine)}</b>`,'right')}${td(gainTxt,'right')}${td(annTxt,'right')}${td(editBtn)}</tr>`;
+    });
+    if (tDep>0) tRatio = tGain/tDep;
+    const tCls = tGain>=0?'var(--green)':'var(--red)';
+    const tAnn = (d.total && d.total.annual_pct!=null) ? `${FMT.format(d.total.annual_pct)} %/an` : '<span class="muted">—</span>';
+    rows += `<tr style="border-top:1px solid #2a3340">${td('<b>Total</b>')}
+      ${td('<b>'+mon(tDep)+'</b>','right')}${td('','right')}${td('','right')}
+      ${td('<b>'+mon(tPat)+'</b>','right')}
+      ${td(`<b style="color:${tCls}">${discret ? (tGain>=0?'+':'')+FMT.format((tRatio||0)*100)+' %' : (tGain>=0?'+':'')+euro(tGain)+(tRatio!=null?' ('+FMT.format(tRatio*100)+' %)':'')}</b>`,'right')}
+      ${td(tAnn,'right')}${td('')}</tr>`;
+    $('perfPanel').innerHTML = `<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #2a3340">
+        ${th('Plateforme')}${th('Déposé','right')}${th('Solde dispo','right')}${th('Dans les projets','right')}
+        ${th('Patrimoine','right')}${th('Gain','right')}${th('Annualisé','right')}${th('')}
+      </tr></thead><tbody>${rows}</tbody></table></div>
+      ${benchRows(d)}
+      <p class="muted" style="font-size:11px;margin-top:6px">Taux annualisé estimé depuis le 1er achat de la plateforme — le réinvestissement des remboursements/intérêts est inclus dans le patrimoine. ✏️ pour corriger les montants.</p>`;
+  } catch(e) { if(e.message!=='auth') toast('❌ '+e.message,'err'); }
+}
+
+function benchRows(d) {
+  const my = d.total && d.total.annual_pct;
+  const b = d.benchmarks || [];
+  const addBtn = `<button class="btn ghost" style="padding:1px 8px;font-size:11px" onclick="addBench()" title="Ajouter un indice">➕</button>`;
+  if (!b.length) {
+    return `<div style="margin-top:10px"><div class="muted" style="font-size:11px;margin-bottom:2px">📈 Comparaison — taux annualisés ${addBtn}</div>
+      <p class="muted" style="font-size:11px;margin-top:4px">Aucun indice de comparaison — utilisez ➕ pour en ajouter un (nom + taux annualisé).</p></div>`;
+  }
+  // classement unifié : plateformes + indices, trié par taux décroissant
+  const platRows = (d.platforms||[]).filter(p=>p.annual_pct!=null).map(p=>({
+    name: (p.platform==='bricks'?'Bricks.co':'La Première Brique'),
+    color: PLAT_COLORS[p.platform]||'#4f8cff',
+    annual_pct: p.annual_pct, editable: false
+  }));
+  const idxRows = b.map(x=>({name: x.name, note: x.note, color: null,
+    annual_pct: x.annual_pct, editable: true, key: x.key, sim_value: x.sim_value, sim_gain: x.sim_gain}));
+  const all = [...platRows, ...idxRows].sort((a,b)=>b.annual_pct-a.annual_pct);
+  // simulation ETF Acc : dépôts réels placés aux dates des 1ers achats
+  const tDeposit = (d.platforms||[]).reduce((a,p)=>a+(p.deposited||0),0);
+  const d0map = {}; (d.platforms||[]).forEach(p=>d0map[p.platform]=p.start_date);
+  const asof = d.sim_asof || '';
+  const simTip = `Simulation : tes dépôts (${euro(tDeposit)}) placés aux dates de tes 1ers achats (Bricks ${d0map.bricks||'?'} · LPB ${d0map.lapremierebrique||'?'}) dans un ETF capitalisant (Acc), valorisés au ${asof}`;
+  const rows = all.map(x=>{
+    const diff = (my!=null && x.annual_pct!=null) ? my - x.annual_pct : null;
+    const cmp = diff==null ? '<span class="muted">—</span>'
+      : diff>=0 ? `<span style="color:var(--green)">▲ ${FMT.format(diff)} pt</span>`
+      : `<span style="color:var(--red)">▼ ${FMT.format(-diff)} pt</span>`;
+    const dot = x.color ? `<span style="color:${x.color}">●</span> ` : '';
+    const edit = x.editable
+      ? `<button class="btn ghost" style="padding:1px 8px;font-size:11px" onclick="editBench('${x.key}','${esc(x.name)}')" title="Modifier le taux">✏️</button>` +
+        `<button class="btn ghost" style="padding:1px 8px;font-size:11px" onclick="delBench('${x.key}')" title="Retirer cet indice">🗑️</button>` : '';
+    const simTd = (x.editable && x.sim_value!=null)
+      ? `<td style="text-align:right;padding:4px 8px" title="${simTip}">${mon(x.sim_value)}</td>` +
+        `<td style="text-align:right;padding:4px 8px" title="${simTip}"><span style="color:${(x.sim_gain||0)>=0?'var(--green)':'var(--red)'}">${discret ? FMT.format(((x.sim_gain||0)/tDeposit)*100)+' %' : (x.sim_gain>=0?'+':'')+euro(x.sim_gain)}</span></td>`
+      : `<td style="text-align:right;padding:4px 8px"><span class="muted" title="${simTip}">—</span></td>` +
+        `<td style="text-align:right;padding:4px 8px"><span class="muted">—</span></td>`;
+    return `<tr>${td(dot+esc(x.name)+' <span class="muted">'+(x.note?esc(x.note):'')+'</span>')}
+      ${td(`<b>${FMT.format(x.annual_pct)} %/an</b>`,'right')}
+      ${td(cmp,'right')}
+      ${simTd}
+      ${td(edit)}</tr>`;
+  }).join('');
+  return `<div style="margin-top:10px"><div class="muted" style="font-size:11px;margin-bottom:2px">📈 Comparaison — taux annualisés (${my!=null?`vs ton total ${FMT.format(my)} %/an`:''}) ${addBtn}</div>
+    <div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid #2a3340">${td('Plateforme / Indice')}${td('Taux / an','right')}${td('Écart vs toi','right')}${td('💶 ETF Acc','right')}${td('Gain simulé','right')}${td('')}</tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <p class="muted" style="font-size:10.5px;margin-top:4px" title="${simTip}">💡 ETF Acc = ce que tes ${euro(tDeposit)} de dépôts vaudraient aujourd'hui (${asof}) placés en indice capitalisant à la date de ton 1er achat — Bricks ${d0map.bricks||'?'} · LPB ${d0map.lapremierebrique||'?'}.</p></div>`;
+}
+
+async function editBench(key, name) {
+  const v = prompt(`${name} — taux annualisé (%/an) :`, '');
+  if (v===null) return;
+  const val = parseFloat(String(v).replace(',','.'));
+  if (isNaN(val)) { toast('❌ Valeur invalide','err'); return; }
+  try {
+    await api('/api/benchmarks', {method:'PUT', body: JSON.stringify({key, annual_pct: val})});
+    toast('💾 Indice mis à jour','ok'); loadOverview();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+
+async function addBench() {
+  const name = (prompt('Nom de l’indice (ex. FTSE 100, Or, BTC…) :', '')||'').trim();
+  if (!name) return;
+  const v = prompt(`${name} — taux annualisé (%/an) :`, '');
+  if (v===null) return;
+  const val = parseFloat(String(v).replace(',','.'));
+  if (isNaN(val)) { toast('❌ Valeur invalide','err'); return; }
+  try {
+    await api('/api/benchmarks', {method:'POST', body: JSON.stringify({name, annual_pct: val})});
+    toast('💾 Indice ajouté','ok'); loadOverview();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+async function delBench(key) {
+  if (!confirm('Retirer cet indice de la comparaison ?')) return;
+  try {
+    await api('/api/benchmarks/'+encodeURIComponent(key), {method:'DELETE'});
+    toast('🗑️ Indice retiré','ok'); loadOverview();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+
+async function editMeta(platform) {
+  try {
+    const d = await api('/api/overview');
+    const p = d.platforms.find(x=>x.platform===platform);
+    if (!p) return;
+    const name = platform==='bricks'?'Bricks.co':'La Première Brique';
+    const dep = prompt(`${name} — Total déposé (€) :`, p.deposited||'');
+    if (dep===null) return;
+    const bal = prompt('Solde disponible (€) :', p.balance||'');
+    if (bal===null) return;
+    let inv = p.invested_value||0;
+    if (!p.invested_value_auto) {
+      const v = prompt('Valeur dans les projets (€) :', p.invested_value||'');
+      if (v===null) return;
+      inv = parseFloat(String(v).replace(',','.'))||0;
+    }
+    await api('/api/platform-meta', {method:'PUT', body: JSON.stringify({
+      platform, deposited: parseFloat(String(dep).replace(',','.'))||0,
+      balance: parseFloat(String(bal).replace(',','.'))||0, invested_value: inv})});
+    toast('💾 Performance mise à jour','ok'); loadOverview();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+
+// ---------- projects
+let projList = [];  // liste filtrée de la page Projets (ne pas confondre avec PROJECTS global)
+async function loadProjects() {
+  try {
+    const plat = $('fPlat').value, st = $('fStatus').value, q = $('fSearch').value.trim().toLowerCase();
+    let url = '/api/projects' + (plat||st ? '?'+new URLSearchParams({...(plat?{platform:plat}:{}), ...(st?{status:st}:{})}) : '');
+    const d = await api(url);
+    projList = d.projects;
+    if (q) projList = projList.filter(p => (p.name+' '+(p.city||'')+' '+p.platform_label).toLowerCase().includes(q));
+    renderProjects();
+  } catch(e) { if(e.message!=='auth') toast('❌ '+e.message,'err'); }
+}
+
+function statusBadge(p) {
+  if (p.is_late) return `<span class="badge late">⚠️ Retard ${FMT0.format(p.days_delayed)} j</span>`;
+  return `<span class="badge ${p.status}">${statusLabel(p.status)}</span>`;
+}
+
+// taux réel annualisé : calcul auto pour les projets terminés (capital + intérêts
+// reçus vs mise, sur la durée réelle) ; sinon saisie manuelle `real_rate` ; « — » sinon
+// Couleurs : 🔴 rouge si négatif · 🟠 orange si sous le taux annoncé (≥0) · 🟢 vert si taux tenu (±0,5 pt)
+function realRateCell(p) {
+  const tip = t('tauxReelTip');
+  let pct = null;
+  if (p.real_annual_pct != null) pct = p.real_annual_pct * 100;
+  else if (p.real_rate > 0) pct = p.real_rate;
+  if (pct == null) return `<span class="muted" title="${tip}">—</span>`;
+  let cls = 'muted';
+  if (pct < 0) cls = 'neg';                                   // négatif → rouge
+  else if (p.rate > 0 && pct < p.rate - 0.5) cls = 'warn';    // positif mais sous l'annoncé → orange
+  else cls = 'pos';                                           // équivalent (±0,5 pt) ou mieux → vert
+  return `<span class="${cls}" title="${tip}">${FMT.format(pct)} %</span>`;
+}
+
+function renderProjects() {
+  const arr = [...projList].sort((a,b)=>{
+    let va=a[sortKey], vb=b[sortKey];
+    if (va==null) return 1; if (vb==null) return -1;
+    if (typeof va==='string') return va.localeCompare(vb)*sortDir;
+    return (va-vb)*sortDir;
+  });
+  $('projBody').innerHTML = arr.length===0
+    ? `<tr><td colspan="11" class="empty">📭 Aucun projet. Clique sur « Ajouter un projet ».</td></tr>`
+    : arr.map(p=>{
+        const netCls = p.net>=0?'pos':'neg';
+        return `<tr onclick="openProjectModal(${p.id})" style="cursor:pointer">
+          <td><b>${esc(p.name)}</b>${p.contract_type==='royalty'?` <span class="badge en_collecte" title="Contrat Royalties — capital remboursé à la revente du bien">🎵 Royalties</span>`:''}${p.city?` <span class="muted">· ${esc(p.city)}</span>`:''}${p.reinvested_from?` <span class="badge en_collecte" title="Capital réinvesti">🔁</span>`:''}</td>
+          <td><span class="plat"><span class="dot" style="background:${PLAT_COLORS[p.platform]||'#4f8cff'}"></span>${esc(p.platform_label)}</span></td>
+          <td class="num">${euro(p.invested)}</td>
+          <td class="num">${p.valuation?euro(p.valuation):'<span class="muted">—</span>'}</td>
+          <td class="num">${p.rate?FMT.format(p.rate)+' %':''}</td>
+          <td class="num">${realRateCell(p)}</td>
+          <td>${p.expected_end_date?esc(p.expected_end_date):p.derived_end_date?esc(p.derived_end_date)+' <span class="muted" title="Estimée : début + durée du contrat">≈</span>':'<span class="muted">—</span>'}</td>
+          <td>${statusBadge(p)}</td>
+          <td class="num">${euro(p.total_gain)}</td>
+          <td class="num ${netCls}">${euro(p.net)}</td>
+          <td><button class="btn small ghost" onclick="event.stopPropagation();openProjectModal(${p.id})">✏️</button></td>
+        </tr>`;
+      }).join('');
+}
+
+function sortBy(k){ if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(typeof projList[0]?.[k]==='string')?1:-1;} renderProjects(); }
+
+// ---------- modal projet
+function openProjectModal(id) {
+  currentProject = id!=null ? projList.find(p=>p.id===id) : null;
+  $('pmTitle').textContent = currentProject ? '✏️ '+currentProject.name : '➕ Nouveau projet';
+  $('pmDelete').classList.toggle('hidden', !currentProject);
+  const p = currentProject || {};
+  // plateform + reinvest list
+  const reinvOpts = PROJECTS.filter(x=>!currentProject || x.id!==currentProject.id)
+    .map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  $('pmReinvest').innerHTML = '<option value="">— Aucun —</option>'+reinvOpts;
+  $('pmPlat').value = p.platform || 'bricks';
+  $('pmStatus').value = p.status || 'en_cours';
+  $('pmName').value = p.name || '';
+  $('pmCity').value = p.city || '';
+  $('pmReinvest').value = p.reinvested_from || '';
+  $('pmInvested').value = p.invested ?? 1000;
+  $('pmRate').value = p.rate ?? 9;
+  $('pmDuration').value = p.duration_months ?? 12;
+  $('pmStart').value = p.start_date || '';
+  $('pmEnd').value = p.expected_end_date || '';
+  $('pmActual').value = p.actual_end_date || '';
+  $('pmRepaid').value = p.repaid_capital ?? 0;
+  $('pmInterest').value = p.interest_received ?? 0;
+  $('pmInterestNet').value = p.interest_net ?? 0;
+  $('pmIntRemain').value = p.interest_remaining ?? 0;
+  $('pmIntRemainNet').value = p.interest_remaining_net ?? 0;
+  $('pmRealRate').value = p.real_rate ?? 0;
+  $('pmValuation').value = p.valuation ?? 0;
+  $('pmContractType').value = p.contract_type || '';
+  $('pmNotes').value = p.notes || '';
+  $('projModal').classList.remove('hidden');
+}
+function closeModal(id){ $(id).classList.add('hidden'); }
+async function saveProject() {
+  const body = {
+    platform:$('pmPlat').value, status:$('pmStatus').value,
+    name:$('pmName').value.trim(), city:$('pmCity').value.trim(),
+    reinvested_from: $('pmReinvest').value? parseInt($('pmReinvest').value):null,
+    invested: parseFloat($('pmInvested').value)||0, rate: parseFloat($('pmRate').value)||0,
+    duration_months: parseInt($('pmDuration').value)||0,
+    start_date: $('pmStart').value||null, expected_end_date: $('pmEnd').value||null,
+    actual_end_date: $('pmActual').value||null,
+    repaid_capital: parseFloat($('pmRepaid').value)||0, interest_received: parseFloat($('pmInterest').value)||0,
+    interest_net: parseFloat($('pmInterestNet').value)||0,
+    interest_remaining: parseFloat($('pmIntRemain').value)||0,
+    interest_remaining_net: parseFloat($('pmIntRemainNet').value)||0,
+    real_rate: parseFloat($('pmRealRate').value)||0,
+    valuation: parseFloat($('pmValuation').value)||0,
+    contract_type: $('pmContractType').value,
+    notes: $('pmNotes').value.trim(),
+  };
+  if (!body.name) { toast('❌ Nom du projet requis','err'); return; }
+  try {
+    if (currentProject) await api('/api/projects/'+currentProject.id, {method:'PUT', body:JSON.stringify(body)});
+    else await api('/api/projects', {method:'POST', body:JSON.stringify(body)});
+    closeModal('projModal'); toast('✅ Projet enregistré'); loadProjects(); loadSummary();
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+async function deleteProject() {
+  if (!currentProject || !confirm('Supprimer « '+currentProject.name+' » ?')) return;
+  try { await api('/api/projects/'+currentProject.id, {method:'DELETE'}); closeModal('projModal');
+    toast('🗑️ Projet supprimé'); loadProjects(); loadSummary(); }
+  catch(e) { toast('❌ '+e.message,'err'); }
+}
+
+// ---------- export
+async function doBackup() {
+  try {
+    const d = await api('/api/backup');
+    const blob = new Blob([JSON.stringify(d, null, 1)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'crowdfunding-tracker-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+    URL.revokeObjectURL(a.href); toast('💾 Sauvegarde téléchargée','ok');
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+async function doRestore(input) {
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  try {
+    const txt = await f.text();
+    const data = JSON.parse(txt);
+    if (!data || !Array.isArray(data.projects) || !Array.isArray(data.operations)) throw new Error('Fichier de sauvegarde invalide');
+    if (!confirm(`⚠️ La restauration REMPLACERA toutes les données actuelles (${data.projects.length} projets, ${data.operations.length} opérations). Continuer ?`)) return;
+    const r = await api('/api/restore', {method:'POST', body: JSON.stringify(data)});
+    toast(`✅ Restauré : ${r.projects} projets, ${r.operations} opérations`,'ok');
+    setTimeout(()=>location.reload(), 900);
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+async function doExport() {
+  try {
+    const res = await fetch('/api/export.csv');
+    if (res.status===401) { showLogin(); return; }
+    if (!res.ok) throw new Error('Export échoué');
+    const blob = await res.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'crowdfunding-tracker.csv'; a.click(); URL.revokeObjectURL(a.href);
+    toast('⬇️ Export téléchargé');
+  } catch(e) { toast('❌ '+e.message,'err'); }
+}
+
+// ---------- mise à jour applicative (check GitHub releases) ----------
+let _updateChecked = false;
+async function checkUpdate() {
+  if (_updateChecked) return;
+  _updateChecked = true;
+  try {
+    const d = await api('/api/check-update');
+    if (!d.update_available) return;
+    if (localStorage.getItem('ct_ignored_update') === d.latest) return;
+    $('updateVer').textContent = 'v' + d.latest;
+    $('updateChangelog').textContent = (d.changelog || '').trim() || '—';
+    $('updateBanner').classList.remove('hidden');
+  } catch(e) { /* silencieux : le check ne doit jamais bloquer l'app */ }
+}
+function dismissUpdate() {
+  $('updateBanner').classList.add('hidden');
+  const v = $('updateVer').textContent.replace(/^v/, '');
+  if (v) localStorage.setItem('ct_ignored_update', v);
+}
+
+// ---------- historique du patrimoine (courbe mensuelle) ----------
+const MONTHS_FR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const MONTHS_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtMonth(ym) { // '2026-08' → 'août 26'
+  const [y, m] = String(ym).split('-').map(Number);
+  const M = (localStorage.getItem('ct_lang') || 'fr') === 'en' ? MONTHS_EN : MONTHS_FR;
+  return (M[m-1] || m) + ' ' + String(y).slice(2);
+}
+async function loadPatrimoineHistory() {
+  try {
+    const d = await api('/api/patrimoine-history');
+    if (!d.labels || !d.labels.length) return;
+    const labels = d.labels.map(fmtMonth);
+    const disc = !!discret;
+    // chips de sélection des indices (persisté par clé)
+    const sel = JSON.parse(localStorage.getItem('ct_hist_idx') || '[]');
+    const idxMap = {};
+    (d.indices || []).forEach(x => idxMap[x.key] = x);
+    $('histIdx').innerHTML = `<span class="muted" style="font-size:11px">${t('histCmp')}</span>` +
+      (d.indices || []).map(x => {
+        const on = sel.includes(x.key);
+        return `<button class="btn ghost" style="padding:2px 9px;font-size:10.5px${on ? ';background:#2a3340;color:#e6edf3' : ''}" onclick="toggleHistIdx('${x.key}')" title="${esc(x.name)}">${on ? '✓ ' : ''}${esc(x.name)}</button>`;
+      }).join('') +
+      `<button class="btn ghost" style="padding:2px 9px;font-size:10.5px" onclick="addBench().then(()=>setTimeout(loadPatrimoineHistory, 250))" title="Ajouter un indice">➕</button>`;
+    let pat = d.patrimoine, mises = d.mises;
+    const selIdx = sel.map(k => idxMap[k]).filter(Boolean);
+    let base = pat[0] > 0 ? pat[0] : 1;
+    if (disc) { // mode discret : indices base 100 (pas de montants)
+      pat = pat.map(v => Math.round(v / base * 1000) / 10);
+      mises = mises.map(v => Math.round(v / base * 1000) / 10);
+    }
+    const fmtV = v => disc ? FMT.format(v) + ' (indice)' : euro(v);
+    const IDX_COLORS = {sp500:'#3fb950', nasdaq:'#f0883e', msci_world:'#a371f7', stoxx600:'#e3b341', cac40:'#f85149', livret_a:'#7ee787'};
+    const IDX_PALETTE = ['#ff7b72','#d2a8ff','#a5d6ff','#79c0ff','#ffa657','#7ee787','#e3b341'];
+    const datasets = [
+      { label: t('histPat'), data: pat, borderColor: '#4f8cff', backgroundColor: 'rgba(79,140,255,.12)', fill: true, tension: .3, pointRadius: 0, borderWidth: 2 },
+      { label: t('histMises'), data: mises, borderColor: '#a371f7', borderDash: [5,4], fill: false, tension: .3, pointRadius: 0, borderWidth: 1.5 },
+    ];
+    selIdx.forEach((x, i) => {
+      let vals = x.values || [];
+      if (disc) vals = vals.map(v => Math.round(v / base * 1000) / 10);
+      datasets.push({ label: x.name, data: vals, borderColor: IDX_COLORS[x.key] || IDX_PALETTE[i % IDX_PALETTE.length],
+        borderDash: [3,3], fill: false, tension: .3, pointRadius: 0, borderWidth: 1.3 });
+    });
+    if (chHist) chHist.destroy();
+    chHist = new Chart($('chHist'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: { maintainAspectRatio: false, interaction: {mode:'index', intersect:false},
+        scales: { x: { grid:{color:'#232b36'}, ticks:{color:'#8b98a9', font:{size:10}, maxTicksLimit: 10} },
+          y: { grid:{color:'#232b36'}, ticks:{color:'#8b98a9', font:{size:10}, callback: v => disc ? v : euro(v)} } },
+        plugins: { legend: {position:'bottom', labels:{color:'#8b98a9', boxWidth:10, font:{size:10}}},
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtV(c.parsed.y)}` } } } }
+    });
+  } catch(e) { if (e.message !== 'auth') console.warn('hist', e); }
+}
+function toggleHistIdx(key) {
+  let sel = JSON.parse(localStorage.getItem('ct_hist_idx') || '[]');
+  sel = sel.includes(key) ? sel.filter(k => k !== key) : [...sel, key];
+  localStorage.setItem('ct_hist_idx', JSON.stringify(sel));
+  loadPatrimoineHistory();
+}
+
+// ============================================================ boot
+async function boot() {
+  try {
+    const me = await api('/api/auth/me');
+    if (!me.authenticated) { showLogin(); return; }
+    showApp();
+    setLang(localStorage.getItem('ct_lang') || 'fr');   // applique langue + data-i18n
+    await loadPlats();
+    await loadProjects();
+    fillOpsProjFilter();
+    await loadSummary();
+    try { $('verParam').textContent = (await api('/api/version')).version; } catch(e){}
+    await loadToken();
+    checkUpdate();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    switchPage('dash');
+  } catch(e) { showLogin(); }
+}
+boot();
+</script>
+</body>
+</html>
